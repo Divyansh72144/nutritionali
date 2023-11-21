@@ -9,6 +9,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './screens/Login/Login';
 // import RegistrationForm from './screens/Homepage/RegistrationForm';
 import { AuthProvider } from './screens/Login/AuthProvider';
+import SignUp from './screens/Login/Signup';
 
 export default function App() {
   const Tab = createBottomTabNavigator();
@@ -19,6 +20,7 @@ export default function App() {
         <Tab.Screen name="Homepage" component={Homepage} />
         <Tab.Screen name="Profile" component={Profile} />
         <Tab.Screen name="Login" component={Login}/>
+        <Tab.Screen name="SignUp" component={SignUp}></Tab.Screen>
       </Tab.Navigator>
       </AuthProvider>
     </NavigationContainer>

@@ -1,14 +1,15 @@
 // Main_Login.js
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, TextInput, StyleSheet, ActivityIndicator, KeyboardAvoidingView, TouchableOpacity, Text ,Image} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { ref, set, get } from 'firebase/database'; // Import these functions from Firebase
+import { ref, set, get } from 'firebase/database';
 import { FIREBASE_AUTH } from "./FirebaseConfig";
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import RegistrationForm from '../Homepage/RegistrationForm';
 import {FIRESTORE_DB} from "./FirebaseConfig"
 import Homepage from '../Homepage/Homepage';
+import SignUp from './Signup';
 
 interface MainLoginProps {
   navigation: NavigationProp<any>;
@@ -20,39 +21,34 @@ const Main_Login = ({ navigation }: MainLoginProps) => {
   const [loading, setLoading] = useState(false);
   const [userUid, setUserUid] = useState(null);
   const auth = FIREBASE_AUTH;
+  
   const signIn = async () => {
     setLoading(true);
     try {
-      // Try to sign in the user
       const response = await signInWithEmailAndPassword(auth, email, password);
       console.log(response);
       setUserUid(response.user.uid);
   
-      // Fetch the username from the database
       const userRef = ref(FIRESTORE_DB, `users/${response.user.uid}`);
       const snapshot = await get(userRef);
   
       if (snapshot.exists()) {
-        // If the user exists, set the username or handle it as needed
         const username = snapshot.val().username;
-        // Do something with the username, you can set it in the state or use it as needed
+        // Do something with the username
       } else {
-        // If the user doesn't exist, you might want to handle this case accordingly
-        console.log('User not found in the database');
-        alert('User not found. Please register.');
+        console.log('Username not found');
+        alert('Please create username');
       }
     } catch (signInError) {
       if (signInError.code === 'auth/user-not-found') {
-        // If the user doesn't exist, proceed with creating the user
         try {
           const createUserResponse = await createUserWithEmailAndPassword(auth, email, password);
           console.log(createUserResponse);
           const userUid = createUserResponse.user.uid;
   
-          // Set the username under the authenticated user's node
           const userRef = ref(FIRESTORE_DB, `users/${userUid}`);
           await set(userRef, {
-            username: 'DEFAULT_USERNAME', // You might want to set a default username or handle this differently
+            username: 'DEFAULT_USERNAME',
           });
   
           setUserUid(userUid);
@@ -68,7 +64,7 @@ const Main_Login = ({ navigation }: MainLoginProps) => {
       setLoading(false);
     }
   };
-  
+
   const updateUserUid = (newUserUid) => {
     setUserUid(newUserUid);
   };
@@ -79,37 +75,55 @@ const Main_Login = ({ navigation }: MainLoginProps) => {
 
   return (
     <View style={styles.container}>
-  {userUid ? (
-    <>
-      <Homepage userUid={userUid} updateUserUid={updateUserUid}/>
-      <RegistrationForm userUid={userUid} updateUserUid={updateUserUid} onRegistrationComplete={handleRegistrationComplete} />
-    </>
-  ) : (
-    <KeyboardAvoidingView behavior="padding">
-      <TextInput
-        value={email}
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        onChangeText={(text) => setEmail(text)}
-      />
-      <TextInput
-        secureTextEntry={true}
-        value={password}
-        style={styles.input}
-        placeholder="Password"
-        autoCapitalize="none"
-        onChangeText={(text) => setPassword(text)}
-      />
-      {loading ? (<ActivityIndicator size="large" color="#0000ff" />) : (
-        <Button title="Login" onPress={signIn} />
+      {userUid ? (
+        <>
+          <Homepage userUid={userUid} updateUserUid={updateUserUid}/>
+          <RegistrationForm
+            userUid={userUid}
+            updateUserUid={updateUserUid}
+            onRegistrationComplete={handleRegistrationComplete}
+          />
+        </>
+      ) : (
+        <KeyboardAvoidingView behavior="padding">
+          <TextInput
+            value={email}
+            style={styles.input}
+            placeholder="Email"
+            autoCapitalize="none"
+            onChangeText={(text) => setEmail(text)}
+          />
+          <TextInput
+            secureTextEntry={true}
+            value={password}
+            style={styles.input}
+            placeholder="Password"
+            autoCapitalize="none"
+            onChangeText={(text) => setPassword(text)}
+          />
+          {loading ? (
+            <ActivityIndicator size="large" color="#0000ff" />
+          ) : (
+            <TouchableOpacity style={styles.customButton} onPress={signIn}>
+              
+              <Text style={styles.buttonText}>Login
+              <Image
+                source={require('../../media/gifs/icon.svg')} // Replace with the actual path to your GIF
+                style={styles.gif}
+              /></Text>
+            </TouchableOpacity>
+          )}
+             <TouchableOpacity
+                style={styles.customButton}
+                onPress={() => navigation.navigate('SignUp')}
+              >
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </TouchableOpacity>
+        </KeyboardAvoidingView>
       )}
-    </KeyboardAvoidingView>
-  )}
 
-  <StatusBar style="auto" />
-</View>
-
+      <StatusBar style="auto" />
+    </View>
   );
 };
 
@@ -128,6 +142,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 10,
     width: '100%',
+  },
+  customButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  gif: {
+    width: 20, // Adjust the width as needed
+    height: 20,
+    marginLeft:3, // Adjust the height as needed
+  },
+  buttonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
 
