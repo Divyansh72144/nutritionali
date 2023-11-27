@@ -3,9 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import { ref, get } from 'firebase/database';
 import { FIRESTORE_DB } from '../Login/FirebaseConfig';
 import { useAuth } from '../Login/AuthProvider';
+import { useAppContext } from '../../AppContext'; // Import the AppContext
 
 export default function Profile() {
   const { user, isLoading } = useAuth(); // Destructure user and isLoading from useAuth
+  const { userUid, username } = useAppContext(); // Use the AppContext to get userUid and username
+
   const [displayedUsername, setDisplayedUsername] = useState('');
 
   useEffect(() => {
@@ -38,8 +41,8 @@ export default function Profile() {
     <View style={styles.container}>
       {isLoading ? (
         <Text>Loading...</Text>
-      ) : user ? (
-        <Text>Your username: {displayedUsername}</Text>
+      ) : userUid ? (
+        <Text>Your username: {displayedUsername || username}</Text>
       ) : (
         <Text>You are not logged in</Text>
       )}

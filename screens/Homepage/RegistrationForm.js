@@ -5,8 +5,11 @@ import { ref, set, get } from 'firebase/database';
 import { signOut, getAuth } from 'firebase/auth';
 import { FIRESTORE_DB } from '../Login/FirebaseConfig'; // Update the path to your Firebase configuration
 import { useNavigation } from '@react-navigation/native';
+import { useAppContext } from '../../AppContext'; // Import the AppContext
 
-export default function RegistrationForm({ userUid,updateUserUid, onRegistrationComplete }) {
+export default function RegistrationForm({ onRegistrationComplete }) {
+  const { userUid, updateUserUid, updateUsername } = useAppContext(); // Use the AppContext
+
   const [username, setUsername] = useState('');
   const [displayedUsername, setDisplayedUsername] = useState('');
   const [signedOut, setSignedOut] = useState(false);
@@ -28,8 +31,10 @@ export default function RegistrationForm({ userUid,updateUserUid, onRegistration
       const snapshot = await get(userRef);
 
       if (snapshot.exists()) {
-        // If the data exists, set the displayed username state
-        setDisplayedUsername(snapshot.val().username);
+        // If the data exists, set the displayed username state and update context
+        const fetchedUsername = snapshot.val().username;
+        setDisplayedUsername(fetchedUsername);
+        updateUsername(fetchedUsername);
       } else {
         console.log('No username found in the database');
       }
@@ -42,7 +47,7 @@ export default function RegistrationForm({ userUid,updateUserUid, onRegistration
   const saveUsername = async () => {
     try {
       console.log('Saving username:', username);
-      console.log(userUid,"REGIS")
+
       // Reference to the 'users' node in the Realtime Database
       const userRef = ref(FIRESTORE_DB, `users/${userUid}`);
 
@@ -69,18 +74,15 @@ export default function RegistrationForm({ userUid,updateUserUid, onRegistration
       await signOut(auth); // Sign out the user
       setSignedOut(true); // Set the state to indicate that the user has been signed out
       updateUserUid(null);
-      navigation.navigate('Homepage');
     } catch (error) {
       console.error('Error signing out: ', error);
       Alert.alert('Error', 'Failed to sign out. See console for details.');
     }
   };
-  
+
   // Check if the user has been signed out
   if (signedOut) {
-    
     return <Text>User has been signed out.</Text>;
-    
   }
 
   return (
