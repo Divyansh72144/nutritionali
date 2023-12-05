@@ -1,22 +1,141 @@
-import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Button,
-  Alert,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { ref, set, get } from 'firebase/database';
+import React, { useState, useEffect ,useRef} from 'react';
+import {StyleSheet,Text,View,TextInput,Button,Alert,TouchableOpacity,ScrollView,Image,Modal,Animated,Easing} from 'react-native';
+import { ref, set, get ,update,remove} from 'firebase/database';
 import { FIRESTORE_DB } from '../Login/FirebaseConfig';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAppContext } from '../../AppContext';
 import { AntDesign } from '@expo/vector-icons';
-import ProgressBar from "@ramonak/react-progress-bar"
+import { foodImages } from '../../media/gifs/FoodImages';
+import {Dimensions} from 'react-native';
+import Svg , {G,Circle} from 'react-native-svg'
+import Donut from './donut';
+import { SimpleLineIcons } from '@expo/vector-icons';
+import DeleteButton from './Edit-Delete';
+import TotalConsumption from './total_consumption';
 
+// Add the FoodModal component here
+const FoodModal = ({ isVisible, closeModal, food }) => {
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={closeModal}
+    >
+    <ScrollView>
+    <View style={styles.modalBackground}>
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Food Details</Text>
+          <View style={styles.modalBody}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={foodImages[food?.name.toLowerCase()]}
+                style={{ width: 150, height: 150 }}
+              />
+              <Text>Food Name: {food?.name}</Text>
+            </View>
+            <View style={styles.donutsContainer}>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.calories}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="tomato"
+      textColor="black"
+      max={1000}
+    />
+    <Text>Calories (kcal)</Text>
+  </View>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.fat_total_g}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightblue"
+      textColor="black"
+      max={50}
+    />
+    <Text>Fat</Text>
+  </View>
+
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.protein_g}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightgreen"
+      textColor="black"
+      max={50}
+    />
+    <Text>Protein (gm)</Text>
+  </View>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.carbohydrates_total_g}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightgreen"
+      textColor="black"
+      max={50}
+    />
+    <Text>Carbohydrates</Text>
+  </View>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.cholesterol_mg}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightgreen"
+      textColor="black"
+      max={100}
+    />
+    <Text>Cholestrol</Text>
+  </View>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.potassium_mg}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightgreen"
+      textColor="black"
+      max={250}
+    />
+    <Text>Potassium (mg)</Text>
+  </View>
+  <View style={styles.donutContainer}>
+    <Donut
+      percentage={food?.nutritional_data?.sugar_g}
+      radius={40}
+      strokeWidth={10}
+      duration={500}
+      color="lightgreen"
+      textColor="black"
+      max={150}
+    />
+    <Text>Sugar (gm)</Text>
+  </View>
+</View>
+            {/* <Text>Calories: {food?.nutritional_data?.calories}</Text>
+            <Text>Protein: {food?.nutritional_data?.protein_g}gm</Text>
+            <Text>Carbs: {food?.nutritional_data?.carbohydrates_total_g}gm</Text> */}
+            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+      </View>
+      </ScrollView>
+    </Modal>
+  );
+};
 
 export default function Homepage() {
   const { userUid, updateUserUid, username } = useAppContext();
@@ -26,6 +145,9 @@ export default function Homepage() {
   const [displayedUsername, setDisplayedUsername] = useState('');
   const [currentUserUid, setCurrentUserUid] = useState(null);
   const [isAddingFood, setAddingFood] = useState(false);
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const navigation = useNavigation();
 
   useEffect(() => {
     if (userUid) {
@@ -57,6 +179,8 @@ export default function Homepage() {
     }
   };
 
+  
+
   const fetchAndDisplayConsumedFood = async () => {
     try {
       const userConsumedFoodRef = ref(
@@ -65,14 +189,12 @@ export default function Homepage() {
       );
 
       const snapshot = await get(userConsumedFoodRef);
-
       if (snapshot.exists()) {
         const consumedFoodList = Object.values(snapshot.val()).map((foodObject) => {
           const foodName = foodObject.Food_name || foodObject.name;
           const nutrition = foodObject.Nutritional_Data[0] || foodObject.nutritional_data;
-          return { name: foodName ,nutritional_data: nutrition};
+          return { name: foodName, nutritional_data: nutrition };
         });
-
         setConsumedFood(consumedFoodList);
       } else {
         console.log('No consumed food found in the database');
@@ -87,13 +209,66 @@ export default function Homepage() {
     }
   };
 
-  const saveFood = async () => {
+  const handleDeleteFood = async (food) => {
     try {
+      if (!food || !food.nutritional_data || !food.nutritional_data.name) {
+        Alert.alert('Error', 'Invalid food data');
+        return;
+      }
+  
       const userConsumedFoodRef = ref(
         FIRESTORE_DB,
         `users/${currentUserUid}/consumedFood`
       );
+  
+      const snapshot = await get(userConsumedFoodRef);
+      const existingData = snapshot.exists() ? snapshot.val() : {};
+  
+      // Find the foodId by searching through each entry
+      let foodId = null;
+      Object.keys(existingData).forEach((key) => {
+        const entry = existingData[key];
+        if (
+          entry &&
+          entry.Food_name &&
+          entry.Food_name.trim().toLowerCase() ===
+            food.nutritional_data.name.trim().toLowerCase()
+        ) {
+          foodId = key;
+        }
+      });
+  
+      console.log('Before deletion', existingData);
+      console.log(foodId);
+  
+      if (foodId) {
+        // Remove the food entry by creating a new object without the key
+        const updatedData = { ...existingData };
+        delete updatedData[foodId];
+  
+        // Update the database with the modified data
+        await set(userConsumedFoodRef, updatedData);
+  
+        // Call handleDelete method after successful deletion
+        fetchAndDisplayConsumedFood();
+      } else {
+        Alert.alert('Error', 'Food not found in the database');
+      }
+    } catch (error) {
+      console.error('Error deleting food: ', error);
+      Alert.alert('Error', 'Failed to delete food. See console for details.');
+    }
+  };
+  
+  
+  
+  const saveFood = async () => {
+    try {
 
+      const userConsumedFoodRef = ref(
+        FIRESTORE_DB,
+        `users/${currentUserUid}/consumedFood`
+      );
       const snapshot = await get(userConsumedFoodRef);
       const existingData = snapshot.exists() ? snapshot.val() : {};
 
@@ -103,7 +278,7 @@ export default function Homepage() {
 
       const foodId = generateFoodId();
 
-      existingData[foodId] = { Food_name: foodName ,Nutritional_Data: nutritionData};
+      existingData[foodId] = { Food_name: foodName, Nutritional_Data: nutritionData };
 
       await set(userConsumedFoodRef, existingData);
 
@@ -129,7 +304,7 @@ export default function Homepage() {
       }
 
       const data = await response.json();
-      console.log(data)
+      console.log(data);
       setNutritionData(data);
     } catch (error) {
       console.error('Request failed:', error);
@@ -146,6 +321,33 @@ export default function Homepage() {
 
   const handleToggleAddingFood = () => {
     setAddingFood((prev) => !prev);
+  };
+
+  const openModal = (food) => {
+    setSelectedFood(food);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  const navigateToFoodDetails = (foodName) => {
+    navigation.navigate('Food', { foodName });
+  };
+
+  const renderProgressBar = (value, color) => {
+    const progressBarHeight = `${value > 100 ? 100 : value}%`;
+
+    return (
+      <View style={styles.progressBarContainer}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View
+            style={[styles.progressBar, { height: progressBarHeight, backgroundColor: color }]}
+          />
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -170,45 +372,180 @@ export default function Homepage() {
         {isAddingFood && (
           <View style={styles.addFoodContainer}>
             <TextInput
-              style={styles.input}
+              style={styles.textInput}
               onChangeText={handleInputChange}
               value={foodName}
               placeholder="Enter food name"
             />
-            <Button title="Search" onPress={handleSearch} />
-            <Button title="Add" onPress={saveFood} />
+             <TouchableOpacity style={styles.optionButton} onPress={handleSearch}>
+                      <Text style={styles.optionButtonText}>Search</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.optionButton} onPress={saveFood}>
+                      <Text style={styles.optionButtonText}>Add</Text>
+                    </TouchableOpacity>
 
             {nutritionData && (
               <View style={styles.nutritionContainer}>
-                <Text>Nutrition Data:</Text>
                 <Text>Calories: {nutritionData[0].calories}</Text>
+                {renderProgressBar((nutritionData[0].calories / 1000) * 100, '#3498db')}
+
                 <Text>Protein: {nutritionData[0].protein_g}gm</Text>
+                {renderProgressBar((nutritionData[0].protein_g / 50) * 100, '#2ecc71')}
+
+                <Text>Carbs: {nutritionData[0].carbohydrates_total_g}gm</Text>
+                {renderProgressBar((nutritionData[0].carbohydrates_total_g / 50) * 100, '#2ecc71')}
               </View>
             )}
           </View>
         )}
 
-        <Text>Consumed Food:</Text>
+
+        <TotalConsumption></TotalConsumption>
+        {/* Food Modal */}
+        <FoodModal
+          isVisible={isModalVisible}
+          closeModal={closeModal}
+          food={selectedFood}
+        />
+
+        <Text style={styles.consumedFoodHeaderText}>
+          Consumed Food{'  '}
+          <Image
+            source={require('../../media/gifs/Other_images/woman.png')}
+            style={{ width: 35, height: 35 }}
+          />
+        </Text>
         {consumedFood.map((food, index) => (
-          <View key={index} style={styles.foodContainer}>
-            <Text style={styles.foodName}>{food.name}</Text>
-            {food.nutritional_data && (
-              <View style={styles.nutritionContainer}>
-                <Text>Nutrition Data:</Text>
-                <Text>Calories: {food.nutritional_data.calories}</Text>
-                <Text>Protein: {food.nutritional_data.protein_g}gm</Text>
-                <ProgressBar completed ={50}/>
+          <TouchableOpacity
+          key={index}
+          onPress={() => openModal(food)}
+        >
+          <View style={styles.foodContainer}>
+            <TouchableOpacity onPress={() => openModal(food)}>
+              <View style={styles.foodNameContainer}>
+                {foodImages[food.name.toLowerCase()] && (
+                  <Image
+                    source={foodImages[food.name.toLowerCase()]}
+                    style={{ width: 40, height: 40 }}
+                  />
+                )}
+                <Text style={styles.foodName}>{food.name}</Text>
+                <View style={styles.iconContainer}>
+               <Text>
+               {selectedFood && (
+                  <DeleteButton
+                    customIcon={<SimpleLineIcons name="options" size={24} color="black" />}
+                    onDelete={() => handleDeleteFood(selectedFood)}
+                  />
+                )}
+              </Text>
+
+                                </View>
               </View>
-            )}
-          </View>
+            </TouchableOpacity>
+              <Text>🔥{food.nutritional_data.calories} kcal</Text>
+
+              {food.nutritional_data && (
+                <View style={styles.nutritionContainer}>
+                  {renderProgressBar(
+                    (food.nutritional_data.calories / 1000) * 100,
+                    '#3498db'
+                  )}
+                  <Text>
+                    <Text style={{ fontWeight: 'bold', marginRight: 20 }}>
+                      {food.nutritional_data.fat_total_g} gm
+                    </Text>{' '}
+                    {'\n'}
+                    Fat
+                  </Text>
+                  {renderProgressBar(
+                    (food.nutritional_data.protein_g / 50) * 100,
+                    '#2ecc71'
+                  )}
+                  <Text>
+                    <Text style={{ fontWeight: 'bold', marginRight: 20 }}>
+                      {food.nutritional_data.protein_g} gm
+                    </Text>{' '}
+                    {'\n'}
+                    Protein
+                  </Text>
+                  {renderProgressBar(
+                    (food.nutritional_data.carbohydrates_total_g / 50) * 100,
+                    '#3498db'
+                  )}
+                  <Text>
+                    <Text style={{ fontWeight: 'bold', marginRight: 20 }}>
+                      {food.nutritional_data.carbohydrates_total_g} gm
+                    </Text>{' '}
+                    {'\n'}
+                    Carbs
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
         ))}
-        <StatusBar style="auto" />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  donutsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  
+  donutContainer: {
+    alignItems: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50, 
+    marginBottom:50
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Background color outside the modal
+    justifyContent: 'flex-start', // Align to the top
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    
+    
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalBody: {
+    alignItems: 'center',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  closeButton: {
+    backgroundColor: '#3498db',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+
   scrollViewContainer: {
     flexGrow: 1,
   },
@@ -218,14 +555,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    width:"100%"
   },
   input: {
-    height: 40,
+    height: 50,
     borderColor: 'gray',
     borderWidth: 1,
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    marginBottom: 30,
+    paddingHorizontal: 15,
     width: '100%',
+    fontSize: 18,
   },
   addButtonContainer: {
     flexDirection: 'row',
@@ -237,13 +576,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f3f4',
   },
   addButton: {
-    padding: 10,
-    borderRadius: 50,
-    width: 50,
-    height: 50,
+    padding: 15,
+    borderRadius: 75,
+    width: 55,
+    height: 55,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 2.5,
+    marginHorizontal: 5,
   },
   addFoodContainer: {
     marginBottom: 20,
@@ -262,15 +601,66 @@ const styles = StyleSheet.create({
   foodContainer: {
     borderWidth: 1,
     borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
+    padding: 20,
+    marginBottom: 20,
+    borderRadius: 10,
+    width:"100%"
   },
   foodName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   nutritionContainer: {
-    marginTop: 5,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+   
+  },
+  progressBarContainer: {
+    width: 8,
+    height: 70,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 7.5,
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  progressBar: {
+    height: '100%',
+  },
+  foodNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  consumedFoodHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  iconContainer: {
+    marginLeft: 'auto', // Move the SimpleLineIcons to the end
+  },
+  optionButton: {
+    backgroundColor: '#e74c3c',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  optionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  
+  textInput: {
+    height: 50,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 30,
+    paddingHorizontal: 15,
+    width: '100%',
+    fontSize: 18,
+    borderRadius: 5, // Adjust the border radius as needed
   },
 });
